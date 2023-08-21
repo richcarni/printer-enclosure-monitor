@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Printer enclosure temperature monitor/controller</title>
+</head>
+<body>
+  <div>
+  Server URI: <input class="draw-border" id="uri" size="47" value="ws://localhost:8080" style="margin-bottom: 5px;">
+  <button class="echo-button" id="connect">Connect</button>
+  <button class="echo-button" id="disconnect">Disconnect</button><br>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr">
+  <fieldset style="display: inline; vertical-align: top;" >
+  <legend>Temperature</legend>
+  <label for="tempTarget">Target</label> 
+  <input id="tempTarget" size=5 readonly style="margin-bottom: 5px;"><br>
+  <label for="newTempTarget">New target</label> 
+  <input id="newTempTarget" size=5 style="margin-bottom: 5px;">
+  <button id="newTempTargetButton" type="button" onclick="ws.send('STT'+document.getElementById('newTempTarget').value)">Set</button><br>
+  <label for="alertTemp">Alert at</label> 
+  <input id="alertTemp" size=5>
+  <input id="alertEnable" type="checkbox" onchange="alertEnableToggle()">
+
+  </fieldset>
+
+  <fieldset style="display: inline; vertical-align: top;">
+  <legend>Manual control</legend>
+  <input id="manualEnable" type="checkbox" style="margin-bottom: 5px;" onchange="manualEnableToggle()">
+  <label for="manualEnable">Enable</label> <br>
+  <label for="fanSpeed">Fan speed</label> 
+  <input id="fanSpeed" type="range" min="0" max="100" onchange="setFanSpeed()" >
+  </fieldset>
+  </div>
+
+  
+  <fieldset >
+  <legend>PID</legend>
+  <label for="period">dt</label> 
+  <input id="period" size=5 style="margin-bottom: 5px;"><br>
+
+
+  <div style="display: grid; grid-template-columns: auto auto auto auto">
+  <div style="text-align: right">
+  <label for="error">e(t)</label>
+  <input id="error" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="K_p">· K_p</label>
+  <input id="K_p" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="error_product">=</label>
+  <input id="error_product" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div></div>
+
+  <div style="text-align: right;">
+  <label for="error_int">∫e(t)</label>
+  <input id="error_int" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="K_i">· K_i</label>
+  <input id="K_i" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="error_int_product">=</label>
+  <input id="error_int_product" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div></div>
+
+  <div style="text-align: right;">
+  <label for="error_der">d/dt e(t)</label>
+  <input id="error_der" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="K_d">· K_d</label>
+  <input id="K_d" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="error_der_product">=</label>
+  <input id="error_der_product" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div></div>  
+    
+  <div></div>
+  <div></div>
+  <div style="text-align: right;">
+  <label for="error_total"></label>
+  <input id="error_total" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+  <div style="text-align: right;">
+  <label for="duty_cycle">⇒ DC</label>
+  <input id="duty_cycle" size=5 readonly style="margin-bottom: 5px;">
+  </div>
+
+  </div>
+  </fieldset>
+  
+  <div>
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <pre id="messages" style="width: 600px; height: 100px; border: solid 1px #cccccc; margin-bottom: 5px; overflow-y: scroll;"></pre>
+
+  <div style="margin-bottom: 5px;">
+    Command<br>
+    <input class="draw-border" id="sendMessage" size="74" value="">
+    <button class="echo-button" id="send">Send</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+
+
+  <script>
+
+
+
+    //var timer = 0
+    const data0 = []
+    const data1 = []
+
+    const ctx = document.getElementById('myChart');
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'Internal',
+          data: data0,
+          backgroundColor: 'rgb(255, 99, 132)'
+        },
+        {
+          label: 'External',
+          data: data1,
+          backgroundColor: 'rgb(46, 134, 193)'
+        }],
+      },
+      options: {
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              displayFormats: {
+                minute: 'HH:mm'
+              },
+              unit: 'minute'
+            }
+          },
+          y: {
+            suggestedMin: 0
+            //beginAtZero: true
+          }  
+        },
+        plugins: {
+          annotation: {
+            annotations: {
+              line: {
+                type: 'line',
+                yMin: 100,
+                yMax: 100,
+                borderWidth: 2,
+                borderColor: 'red'
+              }
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+  <script>
+    function manualEnableToggle() {
+      if (document.getElementById("manualEnable").checked) {
+        ws.send('SMOmanual')
+      }
+      else {
+        ws.send('SMOthermostat')
+      }
+    }
+
+    function setFanSpeed() {
+      const newSpeed = document.getElementById("fanSpeed").value
+      ws.send('SDC'+newSpeed)
+      ws.send('GDC')
+    }
+
+    function alertEnableToggle() {
+      if (document.getElementById("alertEnable").checked) {
+        ws.send('SAL'+document.getElementById("alertTemp").value)
+      }
+      else {
+        ws.send('SAL')
+      }
+      ws.send('GAL')
+    }
+
+    var alertField = document.getElementById("alertTemp")
+    alertField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        document.getElementById("alertEnable").checked = true
+        alertEnableToggle()
+      }
+    })
+
+    var newTempTargetField = document.getElementById("newTempTarget")
+    newTempTargetField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        document.getElementById("newTempTargetButton").click()
+      }
+    })
+
+    var periodField = document.getElementById("period")
+    periodField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        ws.send('SPE'+periodField.value)
+        ws.send('GPE')
+      }
+    })
+
+
+    var ws = null;
+    var K_p = 0
+    var K_i = 0
+    var K_d = 0
+    
+    connect.onclick = function() {
+      ws = new WebSocket(uri.value);
+      ws.onopen = function(ev) {
+        messages.innerText += "[connection opened]\n";
+        ws.send('GMO')
+        ws.send('GTT')
+        ws.send('GPE')
+        ws.send('GKP')
+        ws.send('GKI')
+        ws.send('GKD')
+        ws.send('GAL')
+      };
+      ws.onclose = function(ev) {
+        messages.innerText += "[connection closed]\n";
+      };
+      ws.onmessage = function(ev) {
+        messages.innerText += ev.data + "\n";
+        messages.scrollTop = messages.scrollHeight;
+        // console.log(ev.data)
+
+        const items = ev.data.split('\n')
+        for (item of items) {
+          if (item.startsWith("TMP")) {
+            const tempArray = item.substr(3).split(',')
+            const timeStamp = Date.now()
+            data0.push({x: timeStamp, y: Number(tempArray[0])})
+            data1.push({x: timeStamp, y: Number(tempArray[1])})
+            //data.push(Number(tempArray[1]));
+            //timer+=1;
+            chart.update('none')  
+          }
+          else if (item.startsWith("TTA")) {
+            document.getElementById("tempTarget").value = item.substr(3)
+            chart.options.plugins.annotation.annotations.line.yMin = Number(item.substr(3))
+            chart.options.plugins.annotation.annotations.line.yMax = Number(item.substr(3))
+            chart.update('none')
+          }
+          else if (item.startsWith("ERR")) {
+            document.getElementById("error").value = item.substr(3)
+            document.getElementById("error_product").value = K_p * Number(item.substr(3))
+          }
+          else if (item.startsWith("EIN")) {
+            document.getElementById("error_int").value = item.substr(3)
+            document.getElementById("error_int_product").value = K_i * Number(item.substr(3))
+          }
+          else if (item.startsWith("EDE")) {
+            document.getElementById("error_der").value = item.substr(3)
+            document.getElementById("error_der_product").value = K_d * Number(item.substr(3))
+
+            //todo: put this elsewhere
+            document.getElementById("error_total").value = 
+              Number(document.getElementById("error_product").value) +
+              Number(document.getElementById("error_int_product").value) +
+              Number(document.getElementById("error_der_product").value)
+          }
+          else if (item.startsWith("KPR")) {
+            K_p = Number(item.substr(3))
+            document.getElementById("K_p").value = item.substr(3)
+          }
+          else if (item.startsWith("KIN")) {
+            K_i = Number(item.substr(3))
+            document.getElementById("K_i").value = item.substr(3)
+          }
+          else if (item.startsWith("KDE")) {
+            K_d = Number(item.substr(3))
+            document.getElementById("K_d").value = item.substr(3)
+          }
+          else if (item.startsWith("FAN")) {
+            K_d = Number(item.substr(3))
+            document.getElementById("duty_cycle").value = item.substr(3)
+          }
+          else if (item.startsWith("PER")) {
+            document.getElementById("period").value = item.substr(3)
+          }
+          else if (item.startsWith("MOD")) {
+            //console.log(item.substr(3).trim())
+            if (item.substr(3).trim() == "manual") {
+              document.getElementById("manualEnable").checked = true
+              document.getElementById("fanSpeed").disabled = false
+            }
+            else {
+              document.getElementById("manualEnable").checked = false
+              document.getElementById("fanSpeed").disabled = true
+            }
+            
+          }
+          else if (item.startsWith("ALE")) {
+            if (item.length>3) {
+              document.getElementById('alertTemp').value = item.substr(3)
+              document.getElementById("alertEnable").checked = true
+            }
+            else {
+              document.getElementById("alertEnable").checked = false
+            }
+          }
+
+        }
+
+        
+        
+      };
+      ws.onerror = function(ev) {
+        messages.innerText += "[error]\n";
+        console.log(ev);
+      };
+    };
+    disconnect.onclick = function() {
+      ws.close();
+    };
+    send.onclick = function() {
+      // ws.send(userName.value + ": " + sendMessage.value);
+      ws.send(sendMessage.value);
+      sendMessage.value = "";
+    };
+    sendMessage.onkeyup = function(ev) {
+      ev.preventDefault();
+      if (event.keyCode === 13) {
+        send.click();
+      }
+    }
+  </script>
+</body>
+</html>
