@@ -48,7 +48,7 @@
   </div>
   <div style="text-align: right;">
   <label for="K_p">· K_p</label>
-  <input id="K_p" size=5 readonly style="margin-bottom: 5px;">
+  <input id="K_p" size=5 style="margin-bottom: 5px;">
   </div>
   <div style="text-align: right;">
   <label for="error_product">=</label>
@@ -62,7 +62,7 @@
   </div>
   <div style="text-align: right;">
   <label for="K_i">· K_i</label>
-  <input id="K_i" size=5 readonly style="margin-bottom: 5px;">
+  <input id="K_i" size=5 style="margin-bottom: 5px;">
   </div>
   <div style="text-align: right;">
   <label for="error_int_product">=</label>
@@ -76,7 +76,7 @@
   </div>
   <div style="text-align: right;">
   <label for="K_d">· K_d</label>
-  <input id="K_d" size=5 readonly style="margin-bottom: 5px;">
+  <input id="K_d" size=5 style="margin-bottom: 5px;">
   </div>
   <div style="text-align: right;">
   <label for="error_der_product">=</label>
@@ -217,7 +217,28 @@
     periodField.addEventListener("keypress", function(event) {
       if (event.key === "Enter") {
         ws.send('SPE'+periodField.value)
-        ws.send('GPE')
+        // ws.send('GPE')
+      }
+    })
+
+    var K_pField = document.getElementById("K_p")
+    K_pField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        ws.send('SKP'+K_pField.value)
+      }
+    })
+
+    var K_iField = document.getElementById("K_i")
+    K_iField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        ws.send('SKI'+K_iField.value)
+      }
+    })
+
+    var K_dField = document.getElementById("K_d")
+    K_dField.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        ws.send('SKD'+K_dField.value)
       }
     })
 
