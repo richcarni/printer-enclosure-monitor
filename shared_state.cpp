@@ -45,7 +45,8 @@ void
 shared_state::
 sendSerial (std::string message) {
     if (auto s = *serial_) {
-        s->write(message+"\n");
+        auto const ss = std::make_shared<std::string const>(std::move(message+"\n"));
+        s->write(ss);
     }
     else {
         std::cout<<"Serial not connected\n";

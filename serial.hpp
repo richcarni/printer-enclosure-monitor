@@ -56,8 +56,23 @@ class Serial : public std::enable_shared_from_this<Serial> {
     }
 
     void writeHandler(const boost::system::error_code& ec, std::size_t bytesRead) {
-        wbuf_.consume(wbuf_.size());
-        writeBusy = false;
+        // wbuf_.consume(wbuf_.size());
+        // writeBusy = false;
+        // Handle the error, if any
+        if(ec) {
+            if( ec == boost::asio::error::operation_aborted )
+                return;
+
+            std::cerr << "write" << ": " << ec.message() << "\n";
+        }
+
+        // Remove the string from the queue
+        queue_.erase(queue_.begin());
+
+        // Send the next message if any
+        if(! queue_.empty())
+            boost::asio::async_write(sp_, boost::asio::buffer(*queue_.front()), boost::bind(&Serial::writeHandler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+
     }
 
     void tick(const boost::system::error_code& /*e*/) {//, boost::asio::deadline_timer* t, const std::shared_ptr<shared_state>& state) {
@@ -89,6 +104,7 @@ class Serial : public std::enable_shared_from_this<Serial> {
     boost::asio::deadline_timer timer_;
     static boost::posix_time::seconds interval;
     bool writeBusy;
+    std::vector<std::shared_ptr<std::string const>> queue_;
     
 
 public:
@@ -97,8 +113,9 @@ public:
         open();
     }
 
-    void write(std::string);
-    
+    //void write(std::string);
+    void write (std::shared_ptr<std::string const> const&);
+
     /*void onRead(const boost::system::error_code& ec, std::size_t bytesRead) {
     }
 
