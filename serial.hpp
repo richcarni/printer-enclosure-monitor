@@ -16,9 +16,36 @@ class Serial : public std::enable_shared_from_this<Serial> {
             std::string line_str;
             std::getline(is, line_str);
             
-            std::cout << "read-serial - " << bytesRead<<" - "<<line_str.size()<<" - "<<line_str<< "\n";
+            // std::cout << "read-serial - " << bytesRead<<" - "<<line_str.size()<<" - "<<line_str<< "\n";
             
-            // handle alert
+            if (line_str.rfind("TMP", 0) == 0) {
+                double currentTemp = std::stod(line_str.substr(3, line_str.find(",")));
+                // std::cout << state_->alertEnabled() <<  " - " << state_->alertTemp() << " - " << state_->previousTemp() <<" - "<< currentTemp << "\n";
+                
+                if (state_->alertEnabled()) {
+                    if ( (state_->previousTemp() - state_->alertTemp()) * ( currentTemp - state_->alertTemp() ) <= 0 ) {
+                        // send alert
+                        CURL *curl;
+                        struct curl_slist *list = NULL;
+                        curl = curl_easy_init();
+                        if (curl) {
+                            curl_easy_setopt(curl, CURLOPT_URL, "ntfy.sh/Highett-cetus");
+                            list = curl_slist_append(list, "Tags: warning");
+                            list = curl_slist_append(list, "Title: Enclosure at temperature");
+                            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+                            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, std::to_string(currentTemp).c_str());
+                            curl_easy_perform(curl);
+                            curl_slist_free_all(list);
+                            curl_easy_cleanup(curl);
+                        }
+                        state_->disableAlert();
+                        state_->send("ALE");
+                    }
+                }
+                state_->storePreviousTemp(currentTemp);
+            }
+
+            /*// handle alert
             if (state_->alertEnabled() && (line_str.rfind("TMP", 0) == 0)) {
                 double currentTemp = std::stod(line_str.substr(3, line_str.find(",")));
                 
@@ -43,7 +70,7 @@ class Serial : public std::enable_shared_from_this<Serial> {
                     // todo: send notification to frontend
 
                 }
-            }
+            }*/
             
             state_->send(line_str);
             boost::asio::async_read_until(sp_, buf_, '\n', boost::bind(&Serial::readHandler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
