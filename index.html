@@ -247,11 +247,13 @@
     var K_p = 0
     var K_i = 0
     var K_d = 0
+    var dc = 0;
     
     connect.onclick = function() {
       ws = new WebSocket(uri.value);
       ws.onopen = function(ev) {
         messages.innerText += "[connection opened]\n";
+        ws.send('GDC')
         ws.send('GMO')
         ws.send('GTT')
         ws.send('GPE')
@@ -316,7 +318,7 @@
             document.getElementById("K_d").value = item.substr(3)
           }
           else if (item.startsWith("FAN")) {
-            K_d = Number(item.substr(3))
+            dc = Number(item.substr(3));
             document.getElementById("duty_cycle").value = item.substr(3)
           }
           else if (item.startsWith("PER")) {
@@ -326,6 +328,7 @@
             //console.log(item.substr(3).trim())
             if (item.substr(3).trim() == "manual") {
               document.getElementById("manualEnable").checked = true
+              document.getElementById("fanSpeed").value = dc
               document.getElementById("fanSpeed").disabled = false
             }
             else {
