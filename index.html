@@ -259,15 +259,14 @@
     var K_p = 0
     var K_i = 0
     var K_d = 0
-    var dc = 0;
     
     connect.onclick = function() {
       ws = new WebSocket(uri.value);
       ws.onopen = function(ev) {
         messages.innerText += "[connection opened]\n";
 	document.getElementById("connection_status").className = "logged-in";
-        ws.send('GDC')
         ws.send('GMO')
+        ws.send('GDC')
         ws.send('GTT')
         ws.send('GPE')
         ws.send('GKP')
@@ -334,6 +333,9 @@
           else if (item.startsWith("FAN")) {
             dc = Number(item.substr(3));
             document.getElementById("duty_cycle").value = item.substr(3)
+	    if (document.getElementById("manualEnable").checked === true) {
+	        document.getElementById("fanSpeed").value = dc;
+	    }
           }
           else if (item.startsWith("PER")) {
             document.getElementById("period").value = item.substr(3)
@@ -342,7 +344,6 @@
             //console.log(item.substr(3).trim())
             if (item.substr(3).trim() == "manual") {
               document.getElementById("manualEnable").checked = true
-              document.getElementById("fanSpeed").value = dc
               document.getElementById("fanSpeed").disabled = false
             }
             else {
