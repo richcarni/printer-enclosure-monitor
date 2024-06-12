@@ -3,10 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <title>Printer enclosure temperature monitor/controller</title>
+  <style>
+    .logged-in {
+      color: green;
+    }
+
+    .logged-out {
+      color: red;
+    }
+  </style>
 </head>
-<body style="max-width: 768px">
+<body style="max-width: 768px" onload="init()">
   <div>
-  Server URI: <input class="draw-border" id="uri" size="47" value="ws://localhost:8080" style="margin-bottom: 5px;">
+  Server URI: <input class="draw-border" id="uri" size="47" value="" style="margin-bottom: 5px;" readonly>
+  <span id="connection_status" class="logged-out">●</span>
   <button class="echo-button" id="connect">Connect</button>
   <button class="echo-button" id="disconnect">Disconnect</button><br>
   </div>
@@ -170,9 +180,11 @@
         }
       }
     });
-  </script>
 
-  <script>
+    function init() {
+        document.getElementById("uri").value = "ws://" + window.location.host;
+    }
+
     function manualEnableToggle() {
       if (document.getElementById("manualEnable").checked) {
         ws.send('SMOmanual')
@@ -253,6 +265,7 @@
       ws = new WebSocket(uri.value);
       ws.onopen = function(ev) {
         messages.innerText += "[connection opened]\n";
+	document.getElementById("connection_status").className = "logged-in";
         ws.send('GDC')
         ws.send('GMO')
         ws.send('GTT')
@@ -264,6 +277,7 @@
       };
       ws.onclose = function(ev) {
         messages.innerText += "[connection closed]\n";
+	document.getElementById("connection_status").className = "logged-out";
       };
       ws.onmessage = function(ev) {
         messages.innerText += ev.data + "\n";
